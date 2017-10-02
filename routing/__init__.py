@@ -27,6 +27,8 @@ class Router(object):
     def tick(self):
         for faucet in self._faucets:
             message = faucet.read()
+            if message is None:
+                continue
             for rule, sink in self._sinks:
                 if rule.matches(message):
                     sink.write(message)

@@ -25,7 +25,10 @@ class TestFaucet(Faucet):
         self._messages.append(message)
 
     def read(self):
-        return self._messages.pop(0)
+        try:
+            return self._messages.pop(0)
+        except IndexError:
+            return None
 
 
 class RuleTest(unittest.TestCase):
@@ -80,3 +83,10 @@ class RouterTest(unittest.TestCase):
 
         self.assertEqual(self._sink.messages, [message1, message3])
         self.assertEqual(sink.messages, [message2])
+
+    def test_no_message(self):
+        self._router.add_faucet(TestFaucet())
+
+        self._router.tick()
+
+        self.assertEqual(self._sink.messages, [])
