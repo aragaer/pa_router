@@ -1,9 +1,14 @@
 import json
 import os
 
+from abc import abstractmethod
+
 
 class Faucet(object):
-    pass
+
+    @abstractmethod
+    def read(self):
+        return None
 
 
 class PipeFaucet(Faucet):
@@ -16,7 +21,10 @@ class PipeFaucet(Faucet):
 
 
 class Sink(object):
-    pass
+
+    @abstractmethod
+    def write(self, message):
+        pass
 
 
 class Router(object):
