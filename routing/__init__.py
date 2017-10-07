@@ -1,5 +1,18 @@
+import json
+import os
+
+
 class Faucet(object):
     pass
+
+
+class PipeFaucet(Faucet):
+
+    def __init__(self, pipe_fd):
+        self._file = os.fdopen(pipe_fd, mode='rb')
+
+    def read(self):
+        return json.loads(self._file.readline().decode())
 
 
 class Sink(object):
