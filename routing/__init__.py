@@ -36,8 +36,8 @@ class Router(object):
             dest = message.get("to", None)
             if dest is None and faucet_name in self._rules:
                 for rule in self._rules[faucet_name]:
-                    if rule.matches(message):
-                        dest = rule.target
+                    dest = rule.target_for(message)
+                    if dest is not None:
                         break
             if dest not in self._sinks:
                 dest = None
@@ -65,13 +65,10 @@ class Rule(object):
         self._clauses = kwargs
         self._len = len(kwargs)
 
-    def matches(self, message):
-        source = message['from']
-        return all(source.get(k) == v for k, v in self._clauses.items())
-
-    @property
-    def target(self):
-        return self._target
-
     def __len__(self):
         return self._len
+
+    def target_for(self, message):
+        source = message['from']
+        if all(source.get(k) == v for k, v in self._clauses.items()):
+            return self._target

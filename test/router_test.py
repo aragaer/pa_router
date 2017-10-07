@@ -31,6 +31,19 @@ class TestFaucet(Faucet):
             return None
 
 
+class TestChoiceRule(Rule):
+
+    def __init__(self, target):
+        base = super(TestChoiceRule, self)
+        base.__init__(target=target, media="telegram")
+        self._len += 1
+
+    def target_for(self, message):
+        source = message['from']
+        if source.get('media') == "telegram" and "user" in source:
+            return self._target + source['user']
+
+
 class RuleTest(unittest.TestCase):
 
     def test_create(self):
@@ -39,9 +52,8 @@ class RuleTest(unittest.TestCase):
         message1 = {"from": {"media": "test"}, "message": "test"}
         message2 = {"from": {"media": "telegram", "user": "123456"}, "message": "test"}
 
-        self.assertTrue(rule.matches(message1))
-        self.assertFalse(rule.matches(message2))
-        self.assertEqual(rule.target, "brain")
+        self.assertEqual(rule.target_for(message1), "brain")
+        self.assertEqual(rule.target_for(message2), None)
 
     def test_len(self):
         self.assertEqual(len(Rule(target="", media="test")), 1)
@@ -174,3 +186,24 @@ class RouterTest(unittest.TestCase):
         self._router.tick()
 
         self.assertEqual(self._sink.messages, [message])
+
+    def test_choice_rule(self):
+        sink1 = TestSink()
+        sink2 = TestSink()
+
+        self._router.add_sink(sink1, "sink1")
+        self._router.add_sink(sink2, "sink2")
+
+        self._router.add_rule(TestChoiceRule("sink"), faucet_name="test")
+
+        message1 = {"from": {"media": "telegram", "user": "1"}, "message": "test"}
+        message2 = {"from": {"media": "telegram", "user": "2"}, "message": "test"}
+        message3 = {"from": {"media": "telegram", "user": "3"}, "message": "test"}
+
+        for message in (message1, message2, message3):
+            self._faucet.create_message(message)
+            self._router.tick()
+
+        self.assertEqual(sink1.messages, [message1])
+        self.assertEqual(sink2.messages, [message2])
+        self.assertEqual(self._sink.messages, [message3])
