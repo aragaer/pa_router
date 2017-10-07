@@ -1,7 +1,3 @@
-import json
-import logging
-
-
 class Faucet(object):
     pass
 
@@ -13,7 +9,6 @@ class Sink(object):
 class Router(object):
 
     def __init__(self, default_sink):
-        self._logger = logging.getLogger("router")
         self._faucets = {}
         self._rules = {}
         self._sinks = {}
@@ -47,6 +42,20 @@ class Router(object):
             if dest not in self._sinks:
                 dest = None
             self._sinks[dest].write(message)
+
+    def remove_faucet(self, faucet_or_name):
+        if isinstance(faucet_or_name, str):
+            name = faucet_or_name
+        else:
+            name = next(k for k, v in self._faucets.items() if v == faucet_or_name)
+        del(self._faucets[name])
+
+    def remove_sink(self, sink_or_name):
+        if isinstance(sink_or_name, str):
+            name = sink_or_name
+        else:
+            name = next(k for k, v in self._sinks.items() if v == sink_or_name)
+        del(self._sinks[name])
 
 
 class Rule(object):

@@ -131,3 +131,46 @@ class RouterTest(unittest.TestCase):
         self.assertEqual(sinks[0].messages, [message1])
         self.assertEqual(sinks[1].messages, [message2])
         self.assertEqual(sinks[2].messages, [message3])
+
+    def test_remove_faucet(self):
+        self._router.remove_faucet("test")
+
+        self._faucet.create_message({"from": {"media": "test"}, "message": "test"})
+        self._router.tick()
+
+        self.assertEqual(self._sink.messages, [])
+
+    def test_remove_faucet_object(self):
+        self._router.remove_faucet(self._faucet)
+
+        self._faucet.create_message({"from": {"media": "test"}, "message": "test"})
+        self._router.tick()
+
+        self.assertEqual(self._sink.messages, [])
+
+    def test_remove_sink(self):
+        self._router.add_sink(TestSink(), "sink")
+        self._router.add_rule(Rule(target="sink", media="test"),
+                              faucet_name="test")
+
+        self._router.remove_sink("sink")
+
+        message = {"from": {"media": "test"}, "message": "test"}
+        self._faucet.create_message(message)
+        self._router.tick()
+
+        self.assertEqual(self._sink.messages, [message])
+
+    def test_remove_sink_object(self):
+        sink = TestSink()
+        self._router.add_sink(sink, "sink")
+        self._router.add_rule(Rule(target="sink", media="test"),
+                              faucet_name="test")
+
+        self._router.remove_sink(sink)
+
+        message = {"from": {"media": "test"}, "message": "test"}
+        self._faucet.create_message(message)
+        self._router.tick()
+
+        self.assertEqual(self._sink.messages, [message])
