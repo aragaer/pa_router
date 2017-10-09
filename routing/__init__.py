@@ -2,10 +2,14 @@ import fcntl
 import json
 import os
 
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 
 
-class Faucet(object):
+class EndpointClosedException(Exception):
+    pass
+
+
+class Faucet(metaclass=ABCMeta):
 
     @abstractmethod
     def read(self):
@@ -25,7 +29,7 @@ class PipeFaucet(Faucet):
             return json.loads(line.decode())
 
 
-class Sink(object):
+class Sink(metaclass=ABCMeta):
 
     @abstractmethod
     def write(self, message):
