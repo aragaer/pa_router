@@ -3,7 +3,7 @@ import json
 import os
 import unittest
 
-from routing import PipeFaucet, PipeSink
+from routing import EndpointClosedException, PipeFaucet, PipeSink
 
 
 class PipeFaucetTest(unittest.TestCase):
@@ -20,6 +20,15 @@ class PipeFaucetTest(unittest.TestCase):
         self.assertEqual(faucet.read(), {"message": "test"})
         self.assertEqual(faucet.read(), {"message": "second"})
         self.assertEqual(faucet.read(), None)
+
+    def test_closed(self):
+        faucet_fd, sink_fd = os.pipe()
+        faucet = PipeFaucet(faucet_fd)
+
+        os.close(faucet_fd)
+
+        with self.assertRaises(EndpointClosedException):
+            faucet.read()
 
 
 class PipeSinkTest(unittest.TestCase):

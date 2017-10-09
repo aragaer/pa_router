@@ -24,7 +24,10 @@ class PipeFaucet(Faucet):
         self._file = os.fdopen(pipe_fd, mode='rb')
 
     def read(self):
-        line = self._file.readline()
+        try:
+            line = self._file.readline()
+        except OSError as ex:
+            raise EndpointClosedException(ex)
         if line:
             return json.loads(line.decode())
 
