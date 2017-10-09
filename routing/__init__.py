@@ -1,3 +1,4 @@
+import fcntl
 import json
 import os
 
@@ -14,10 +15,14 @@ class Faucet(object):
 class PipeFaucet(Faucet):
 
     def __init__(self, pipe_fd):
+        fl = fcntl.fcntl(pipe_fd, fcntl.F_GETFL)
+        fcntl.fcntl(pipe_fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
         self._file = os.fdopen(pipe_fd, mode='rb')
 
     def read(self):
-        return json.loads(self._file.readline().decode())
+        line = self._file.readline()
+        if line:
+            return json.loads(line.decode())
 
 
 class Sink(object):
@@ -25,6 +30,17 @@ class Sink(object):
     @abstractmethod
     def write(self, message):
         pass
+
+
+class PipeSink(Sink):
+
+    def __init__(self, pipe_fd):
+        self._file = os.fdopen(pipe_fd, mode='wb')
+
+    def write(self, message):
+        self._file.write(json.dumps(message).encode())
+        self._file.write(b'\n')
+        self._file.flush()
 
 
 class Router(object):
