@@ -32,6 +32,27 @@ class PipeFaucet(Faucet):
             return json.loads(line.decode())
 
 
+class SocketFaucet(Faucet):
+
+    def __init__(self, sock):
+        self._sock = sock
+        self._sock.setblocking(False)
+        self._buf = ""
+
+    def read(self):
+        pos = self._buf.find("\n")
+        if pos == -1:
+            try:
+                self._buf += self._sock.recv(4096).decode()
+            except BlockingIOError:
+                pass
+            pos = self._buf.find("\n")
+        if pos == -1:
+            return
+        line, self._buf = self._buf[:pos], self._buf[pos+1:]
+        return json.loads(line)
+
+
 class Sink(metaclass=ABCMeta):
 
     @abstractmethod
@@ -48,6 +69,15 @@ class PipeSink(Sink):
         self._file.write(json.dumps(message).encode())
         self._file.write(b'\n')
         self._file.flush()
+
+
+class SocketSink(Sink):
+
+    def __init__(self, sock):
+        self._sock = sock
+
+    def write(self, message):
+        self._sock.send("{}\n".format(json.dumps(message)).encode())
 
 
 class Router(object):
