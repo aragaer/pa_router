@@ -43,7 +43,10 @@ class SocketFaucet(Faucet):
         pos = self._buf.find("\n")
         if pos == -1:
             try:
-                self._buf += self._sock.recv(4096).decode()
+                data = self._sock.recv(4096).decode()
+                if not data:
+                    raise EndpointClosedException()
+                self._buf += data
             except BlockingIOError:
                 pass
             pos = self._buf.find("\n")
@@ -66,9 +69,12 @@ class PipeSink(Sink):
         self._file = os.fdopen(pipe_fd, mode='wb')
 
     def write(self, message):
-        self._file.write(json.dumps(message).encode())
-        self._file.write(b'\n')
-        self._file.flush()
+        try:
+            self._file.write(json.dumps(message).encode())
+            self._file.write(b'\n')
+            self._file.flush()
+        except OSError:
+            raise EndpointClosedException()
 
 
 class SocketSink(Sink):
@@ -77,7 +83,10 @@ class SocketSink(Sink):
         self._sock = sock
 
     def write(self, message):
-        self._sock.send("{}\n".format(json.dumps(message)).encode())
+        try:
+            self._sock.send("{}\n".format(json.dumps(message)).encode())
+        except BrokenPipeError:
+            raise EndpointClosedException()
 
 
 class Router(object):

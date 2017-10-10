@@ -2,7 +2,7 @@ import json
 import socket
 import unittest
 
-from routing import SocketFaucet, SocketSink
+from routing import EndpointClosedException, SocketFaucet, SocketSink
 
 
 class SocketFaucetTest(unittest.TestCase):
@@ -21,6 +21,19 @@ class SocketFaucetTest(unittest.TestCase):
         self.assertEqual(faucet.read(), {"message": "post"})
         self.assertEqual(faucet.read(), None)
 
+    def test_closed(self):
+        server, client = socket.socketpair()
+
+        self.addCleanup(server.close)
+        self.addCleanup(client.close)
+
+        faucet = SocketFaucet(client)
+
+        server.close()
+
+        with self.assertRaises(EndpointClosedException):
+            faucet.read()
+
 
 class SocketSinkTest(unittest.TestCase):
 
@@ -37,3 +50,16 @@ class SocketSinkTest(unittest.TestCase):
 
         line = server.recv(4096)
         self.assertEqual(line, "{}\n".format(json.dumps({"message": "test"})).encode())
+
+    def test_closed(self):
+        server, client = socket.socketpair()
+
+        self.addCleanup(server.close)
+        self.addCleanup(client.close)
+
+        sink = SocketSink(client)
+
+        server.close()
+
+        with self.assertRaises(EndpointClosedException):
+            sink.write({"message": "test"})

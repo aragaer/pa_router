@@ -46,3 +46,12 @@ class PipeSinkTest(unittest.TestCase):
         line = faucet_file.readline()
 
         self.assertEqual(line, "{}\n".format(json.dumps({"message": "test"})).encode())
+
+    def test_closed(self):
+        faucet_fd, sink_fd = os.pipe()
+        sink = PipeSink(sink_fd)
+
+        os.close(sink_fd)
+
+        with self.assertRaises(EndpointClosedException):
+            sink.write({"message": "test"})
