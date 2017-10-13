@@ -1,4 +1,5 @@
 import fcntl
+import logging
 import json
 import os
 
@@ -92,6 +93,7 @@ class SocketSink(Sink):
 class Router(object):
 
     def __init__(self, default_sink):
+        self._logger = logging.getLogger("router")
         self._faucets = {}
         self._rules = {}
         self._sinks = {}
@@ -116,6 +118,7 @@ class Router(object):
             message = faucet.read()
             if message is None:
                 continue
+            self._logger.debug("message %s", message)
             dest = message.get("to", None)
             if dest is None and faucet_name in self._rules:
                 for rule in self._rules[faucet_name]:
@@ -125,6 +128,7 @@ class Router(object):
             if dest not in self._sinks:
                 dest = None
             self._sinks[dest].write(message)
+            self._logger.debug("sent to %s", dest)
 
     def remove_faucet(self, faucet_or_name):
         if isinstance(faucet_or_name, str):
