@@ -13,8 +13,8 @@ class EndpointClosedException(Exception):
 class Faucet(metaclass=ABCMeta):
 
     @abstractmethod
-    def read(self):
-        return None
+    def read(self): #pragma: no cover
+        raise NotImplementedError
 
 
 class PipeFaucet(Faucet):
@@ -60,8 +60,8 @@ class SocketFaucet(Faucet):
 class Sink(metaclass=ABCMeta):
 
     @abstractmethod
-    def write(self, message):
-        pass
+    def write(self, message): #pragma: no cover
+        raise NotImplementedError
 
 
 class PipeSink(Sink):
