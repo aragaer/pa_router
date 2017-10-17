@@ -37,33 +37,11 @@ class RunnerTest(unittest.TestCase):
         sink.write({"message": "test"})
 
         self.assertTrue(isinstance(faucet, Faucet))
-        while True:
-            line = faucet.read()
-            if line is None:
-                time.sleep(0.1)
-            else:
-                break
-        self.assertEquals(line, {"message": "test"})
-
-    @unittest.skip
-    def test_cat_socat_direct(self):
-        import socket
-        import subprocess
-        dirname = mkdtemp()
-        self.addCleanup(lambda: shutil.rmtree(dirname))
-
-        sockname = os.path.join(dirname, "socket")
-        proc = subprocess.Popen(["socat", "SYSTEM:cat", "UNIX-LISTEN:{}".format(sockname)])
-
-        while not os.path.exists(sockname):
+        line = None
+        while line is None:
             time.sleep(0.1)
-            
-        sock = socket.socket(socket.AF_UNIX)
-        sock.connect(sockname)
-        sock.send(b'test\n')
-        time.sleep(0.1)
-        print(sock.recv(4))
-        self.fail("foo")
+            line = faucet.read()
+        self.assertEquals(line, {"message": "test"})
 
     def test_cat_socat(self):
         dirname = mkdtemp()
