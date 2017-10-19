@@ -92,6 +92,8 @@ class SocketSink(Sink):
 
 class Router(object):
 
+    _sink_factory = None
+
     def __init__(self, default_sink):
         self._logger = logging.getLogger("router")
         self._faucets = {}
@@ -112,9 +114,14 @@ class Router(object):
         self._rules[faucet_name] = sorted(self._rules[faucet_name],
                                           key=len,
                                           reverse=True)
+        self._logger.debug("Added %s to faucet %s", rule, faucet_name)
+
+    def add_sink_factory(self, factory):
+        self._sink_factory = factory
 
     def tick(self):
-        for faucet_name, faucet in self._faucets.items():
+        faucets = {**self._faucets}
+        for faucet_name, faucet in faucets.items():
             message = faucet.read()
             if message is None:
                 continue
@@ -125,6 +132,8 @@ class Router(object):
                     dest = rule.target_for(message)
                     if dest is not None:
                         break
+            if dest not in self._sinks and self._sink_factory is not None:
+                self._sink_factory(self, dest)
             if dest not in self._sinks:
                 dest = None
             self._sinks[dest].write(message)
@@ -159,3 +168,6 @@ class Rule(object):
         source = message['from']
         if all(source.get(k) == v for k, v in self._clauses.items()):
             return self._target
+
+    def __str__(self):
+        return "Rule({}=>{})".format(str(self._clauses), self._target)

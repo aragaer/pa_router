@@ -207,3 +207,23 @@ class RouterTest(unittest.TestCase):
         self.assertEqual(sink1.messages, [message1])
         self.assertEqual(sink2.messages, [message2])
         self.assertEqual(self._sink.messages, [message3])
+
+    def test_sink_factory(self):
+        from unittest.mock import MagicMock
+        self._router.add_rule(Rule(target="sink"), faucet_name="test")
+
+        sink = TestSink()
+        def callback(router, name):
+            router.add_sink(sink, name)
+            router.add_faucet(TestFaucet(), name)
+        factory = MagicMock(side_effect=callback)
+
+        self._router.add_sink_factory(factory)
+        message = {"from": {"media": "test"}, "message": "test"}
+
+        self._faucet.create_message(message)
+        self._router.tick()
+
+        self.assertEqual(self._sink.messages, [])
+        self.assertEqual(sink.messages, [message])
+        factory.assert_called_once_with(self._router, "sink")
