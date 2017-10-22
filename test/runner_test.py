@@ -24,6 +24,14 @@ class RunnerTest(unittest.TestCase):
         self._runner.load(config_name)
         os.unlink(config_name)
 
+    @staticmethod
+    def _readline(faucet):
+        for _ in range(10):
+            time.sleep(0.1)
+            line = faucet.read()
+            if line is not None:
+                return line
+
     def test_cat(self):
         self._load_config("cat:\n"
                           "  command: cat\n"
@@ -37,11 +45,7 @@ class RunnerTest(unittest.TestCase):
         sink.write({"message": "test"})
 
         self.assertTrue(isinstance(faucet, Faucet))
-        line = None
-        while line is None:
-            time.sleep(0.1)
-            line = faucet.read()
-        self.assertEquals(line, {"message": "test"})
+        self.assertEquals(self._readline(faucet), {"message": "test"})
 
     def test_cat_socat(self):
         dirname = mkdtemp()
@@ -57,13 +61,7 @@ class RunnerTest(unittest.TestCase):
 
         self._runner.get_sink('socat').write({"message": "test"})
         faucet = self._runner.get_faucet('socat')
-        for _ in range(10):
-            line = faucet.read()
-            if line is None:
-                time.sleep(0.1)
-            else:
-                break
-        self.assertEquals(line, {"message": "test"})
+        self.assertEquals(self._readline(faucet), {"message": "test"})
 
     def test_cwd(self):
         dirname = mkdtemp()
@@ -80,11 +78,7 @@ class RunnerTest(unittest.TestCase):
 
         faucet = self._runner.get_faucet('cat')
         self.assertTrue(isinstance(faucet, Faucet))
-        line = None
-        while line is None:
-            time.sleep(0.1)
-            line = faucet.read()
-        self.assertEquals(line, {"message": "test"})
+        self.assertEquals(self._readline(faucet), {"message": "test"})
 
     def test_alias(self):
         self._load_config("cat:\n"
@@ -96,11 +90,7 @@ class RunnerTest(unittest.TestCase):
         faucet = self._runner.get_faucet('cat0')
 
         sink.write({"message": "test"})
-        line = None
-        while line is None:
-            time.sleep(0.1)
-            line = faucet.read()
-        self.assertEquals(line, {"message": "test"})
+        self.assertEquals(self._readline(faucet), {"message": "test"})
 
     def test_extra_args(self):
         dirname = mkdtemp()
@@ -118,15 +108,7 @@ class RunnerTest(unittest.TestCase):
         self._runner.ensure_running('cat', alias="cat1", with_args=['file1'])
         self._runner.ensure_running('cat', alias="cat2", with_args=['file2'])
 
-        faucet = self._runner.get_faucet('cat1')
-        line = None
-        while line is None:
-            time.sleep(0.1)
-            line = faucet.read()
-        self.assertEquals(line, {"message": "test1"})
+        faucet1 = self._runner.get_faucet('cat1')
+        self.assertEquals(self._readline(faucet1), {"message": "test1"})
         faucet2 = self._runner.get_faucet('cat2')
-        line = None
-        while line is None:
-            time.sleep(0.1)
-            line = faucet2.read()
-        self.assertEquals(line, {"message": "test2"})
+        self.assertEquals(self._readline(faucet2), {"message": "test2"})
