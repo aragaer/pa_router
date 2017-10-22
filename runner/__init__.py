@@ -21,14 +21,18 @@ class App:
 
     def start(self):
         if self._type == 'stdio':
-            self._proc = subprocess.Popen(self._command,
-                                          stdin=subprocess.PIPE,
-                                          stdout=subprocess.PIPE)
+            stdin = stdout = subprocess.PIPE
+        elif self._type == 'socket':
+            stdin = stdout = None
+        self._proc = subprocess.Popen(self._command,
+                                      stdin=stdin,
+                                      stdout=stdout,
+                                      cwd=self._kwargs.get('cwd'))
+        if self._type == 'stdio':
             self._sink = PipeSink(self._proc.stdin.fileno())
             self._faucet = PipeFaucet(self._proc.stdout.fileno())
         elif self._type == 'socket':
             sockname = self._kwargs['socket']
-            self._proc = subprocess.Popen(self._command)
             sock = socket.socket(socket.AF_UNIX)
             while not os.path.exists(sockname):
                 time.sleep(0.1)

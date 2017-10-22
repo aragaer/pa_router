@@ -64,3 +64,24 @@ class RunnerTest(unittest.TestCase):
             else:
                 break
         self.assertEquals(line, {"message": "test"})
+
+    def test_cwd(self):
+        dirname = mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(dirname))
+        with open(os.path.join(dirname, "file"), "w") as file:
+            file.write('{"message": "test"}\n')
+
+        self._load_config("cat:\n"
+                          "  command: cat file\n"
+                          "  type: stdio\n"
+                          "  cwd: {}\n".format(dirname))
+
+        self._runner.ensure_running('cat')
+
+        faucet = self._runner.get_faucet('cat')
+        self.assertTrue(isinstance(faucet, Faucet))
+        line = None
+        while line is None:
+            time.sleep(0.1)
+            line = faucet.read()
+        self.assertEquals(line, {"message": "test"})
