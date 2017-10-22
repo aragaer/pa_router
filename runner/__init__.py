@@ -9,36 +9,12 @@ import yaml
 from routing import PipeFaucet, PipeSink, SocketFaucet, SocketSink
 
 
-class App:
+class Proc:
 
-    def __init__(self, command, type="stdio", **kwargs):
-        self._command = shlex.split(command)
-        self._proc = None
-        self._sink = None
-        self._faucet = None
-        self._type = type
-        self._kwargs = kwargs
-
-    def start(self):
-        if self._type == 'stdio':
-            stdin = stdout = subprocess.PIPE
-        elif self._type == 'socket':
-            stdin = stdout = None
-        self._proc = subprocess.Popen(self._command,
-                                      stdin=stdin,
-                                      stdout=stdout,
-                                      cwd=self._kwargs.get('cwd'))
-        if self._type == 'stdio':
-            self._sink = PipeSink(self._proc.stdin.fileno())
-            self._faucet = PipeFaucet(self._proc.stdout.fileno())
-        elif self._type == 'socket':
-            sockname = self._kwargs['socket']
-            sock = socket.socket(socket.AF_UNIX)
-            while not os.path.exists(sockname):
-                time.sleep(0.1)
-            sock.connect(sockname)
-            self._sink = SocketSink(sock)
-            self._faucet = SocketFaucet(sock)
+    def __init__(self, proc, faucet, sink):
+        self._proc = proc
+        self._faucet = faucet
+        self._sink = sink
 
     @property
     def faucet(self):
@@ -49,11 +25,45 @@ class App:
         return self._sink
 
 
+class App:
+
+    def __init__(self, command, type="stdio", **kwargs):
+        self._command = shlex.split(command)
+        self._type = type
+        self._kwargs = kwargs
+
+    def start(self, extra_args):
+        if self._type == 'stdio':
+            stdin = stdout = subprocess.PIPE
+        elif self._type == 'socket':
+            stdin = stdout = None
+        command = self._command[:]
+        if extra_args is not None:
+            command += extra_args
+        proc = subprocess.Popen(command,
+                                stdin=stdin,
+                                stdout=stdout,
+                                cwd=self._kwargs.get('cwd'))
+        if self._type == 'stdio':
+            sink = PipeSink(proc.stdin.fileno())
+            faucet = PipeFaucet(proc.stdout.fileno())
+        elif self._type == 'socket':
+            sockname = self._kwargs['socket']
+            sock = socket.socket(socket.AF_UNIX)
+            while not os.path.exists(sockname):
+                time.sleep(0.1)
+            sock.connect(sockname)
+            sink = SocketSink(sock)
+            faucet = SocketFaucet(sock)
+        return Proc(proc, faucet, sink)
+
+
 class Runner:
 
     def __init__(self):
         self._logger = logging.getLogger("runner")
         self._apps = {}
+        self._procs = {}
 
     def load(self, config_file_name):
         self._logger.info("Loading config %s", config_file_name)
@@ -62,12 +72,14 @@ class Runner:
         for app, app_config in config.items():
             self._apps[app] = App(**app_config)
 
-    def ensure_running(self, app_name):
-        self._logger.info("Starting application %s", app_name)
-        self._apps[app_name].start()
+    def ensure_running(self, app_name, alias=None, with_args=None):
+        if alias is None:
+            alias = app_name
+        self._logger.info("Starting application %s as %s", app_name, alias)
+        self._procs[alias] = self._apps[app_name].start(with_args)
 
-    def get_faucet(self, app_name):
-        return self._apps[app_name].faucet
+    def get_faucet(self, alias):
+        return self._procs[alias].faucet
 
-    def get_sink(self, app_name):
-        return self._apps[app_name].sink
+    def get_sink(self, alias):
+        return self._procs[alias].sink

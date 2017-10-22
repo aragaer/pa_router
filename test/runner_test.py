@@ -85,3 +85,48 @@ class RunnerTest(unittest.TestCase):
             time.sleep(0.1)
             line = faucet.read()
         self.assertEquals(line, {"message": "test"})
+
+    def test_alias(self):
+        self._load_config("cat:\n"
+                          "  command: cat\n"
+                          "  type: stdio\n")
+        self._runner.ensure_running('cat', alias='cat0')
+
+        sink = self._runner.get_sink('cat0')
+        faucet = self._runner.get_faucet('cat0')
+
+        sink.write({"message": "test"})
+        line = None
+        while line is None:
+            time.sleep(0.1)
+            line = faucet.read()
+        self.assertEquals(line, {"message": "test"})
+
+    def test_extra_args(self):
+        dirname = mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(dirname))
+        with open(os.path.join(dirname, "file1"), "w") as file:
+            file.write('{"message": "test1"}\n')
+        with open(os.path.join(dirname, "file2"), "w") as file:
+            file.write('{"message": "test2"}\n')
+
+        self._load_config("cat:\n"
+                          "  command: cat\n"
+                          "  type: stdio\n"
+                          "  cwd: {}\n".format(dirname))
+
+        self._runner.ensure_running('cat', alias="cat1", with_args=['file1'])
+        self._runner.ensure_running('cat', alias="cat2", with_args=['file2'])
+
+        faucet = self._runner.get_faucet('cat1')
+        line = None
+        while line is None:
+            time.sleep(0.1)
+            line = faucet.read()
+        self.assertEquals(line, {"message": "test1"})
+        faucet2 = self._runner.get_faucet('cat2')
+        line = None
+        while line is None:
+            time.sleep(0.1)
+            line = faucet2.read()
+        self.assertEquals(line, {"message": "test2"})
