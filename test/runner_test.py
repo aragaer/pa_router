@@ -5,8 +5,8 @@ import unittest
 
 from tempfile import mkdtemp, mkstemp
 
-from routing import Faucet, Sink
-from runner import Runner
+from routing import Faucet, Sink, EndpointClosedException
+from routing.runner import Runner
 
 
 class RunnerTest(unittest.TestCase):
@@ -112,3 +112,32 @@ class RunnerTest(unittest.TestCase):
         self.assertEquals(self._readline(faucet1), {"message": "test1"})
         faucet2 = self._runner.get_faucet('cat2')
         self.assertEquals(self._readline(faucet2), {"message": "test2"})
+
+    def test_terminate(self):
+        self._load_config("cat:\n"
+                          "  command: cat\n"
+                          "  type: stdio\n")
+        self._runner.ensure_running('cat')
+
+        self._runner.terminate('cat')
+
+        with self.assertRaises(EndpointClosedException):
+            self._runner.get_faucet('cat').read()
+
+    def test_socket_arg(self):
+        dirname = mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(dirname))
+        sockname = os.path.join(dirname, "socket")
+        with open(sockname, "w") as file:
+            file.write("")
+
+        self._load_config("socat:\n"
+                          "  command: socat SYSTEM:cat UNIX-LISTEN:{socketname}\n"
+                          "  cwd: {dirname}\n"
+                          "  type: socket\n".format(socketname=sockname, dirname=dirname))
+
+        self._runner.ensure_running('socat', socket=sockname)
+
+        self._runner.get_sink('socat').write({"message": "test"})
+        faucet = self._runner.get_faucet('socat')
+        self.assertEquals(self._readline(faucet), {"message": "test"})

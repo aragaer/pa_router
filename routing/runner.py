@@ -6,7 +6,7 @@ import subprocess
 import time
 import yaml
 
-from routing import PipeFaucet, PipeSink, SocketFaucet, SocketSink
+from . import PipeFaucet, PipeSink, SocketFaucet, SocketSink
 
 
 class Proc:
@@ -32,11 +32,14 @@ class App:
         self._type = type
         self._kwargs = kwargs
 
-    def start(self, extra_args):
+    def start(self, extra_args, **extra_kwargs):
         if self._type == 'stdio':
             stdin = stdout = subprocess.PIPE
         elif self._type == 'socket':
+            sockname = self._kwargs.get('socket') or extra_kwargs['socket']
             stdin = stdout = None
+            if os.path.exists(sockname):
+                os.unlink(sockname)
         command = self._command[:]
         if extra_args is not None:
             command += extra_args
@@ -48,7 +51,6 @@ class App:
             sink = PipeSink(proc.stdin.fileno())
             faucet = PipeFaucet(proc.stdout.fileno())
         elif self._type == 'socket':
-            sockname = self._kwargs['socket']
             sock = socket.socket(socket.AF_UNIX)
             while not os.path.exists(sockname):
                 time.sleep(0.1)
@@ -72,14 +74,19 @@ class Runner:
         for app, app_config in config.items():
             self._apps[app] = App(**app_config)
 
-    def ensure_running(self, app_name, alias=None, with_args=None):
+    def ensure_running(self, app_name, alias=None, with_args=None, **kwargs):
         if alias is None:
             alias = app_name
         self._logger.info("Starting application %s as %s", app_name, alias)
-        self._procs[alias] = self._apps[app_name].start(with_args)
+        self._procs[alias] = self._apps[app_name].start(with_args, **kwargs)
 
     def get_faucet(self, alias):
         return self._procs[alias].faucet
 
     def get_sink(self, alias):
         return self._procs[alias].sink
+
+    def terminate(self, alias):
+        proc = self._procs[alias]._proc
+        proc.stdin.close()
+        proc.stdout.close()
