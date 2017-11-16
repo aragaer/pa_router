@@ -122,22 +122,23 @@ class Router(object):
     def tick(self):
         faucets = {**self._faucets}
         for faucet_name, faucet in faucets.items():
-            message = faucet.read()
-            if message is None:
-                continue
-            self._logger.debug("message %s", message)
-            dest = message.get("to", None)
-            if dest is None and faucet_name in self._rules:
-                for rule in self._rules[faucet_name]:
-                    dest = rule.target_for(message)
-                    if dest is not None:
-                        break
-            if dest not in self._sinks and self._sink_factory is not None:
-                self._sink_factory(self, dest)
-            if dest not in self._sinks:
-                dest = None
-            self._sinks[dest].write(message)
-            self._logger.debug("sent to %s", dest)
+            while True:
+                message = faucet.read()
+                if message is None:
+                    break
+                self._logger.debug("message %s", message)
+                dest = message.get("to", None)
+                if dest is None and faucet_name in self._rules:
+                    for rule in self._rules[faucet_name]:
+                        dest = rule.target_for(message)
+                        if dest is not None:
+                            break
+                if dest not in self._sinks and self._sink_factory is not None:
+                    self._sink_factory(self, dest)
+                if dest not in self._sinks:
+                    dest = None
+                self._sinks[dest].write(message)
+                self._logger.debug("sent to %s", dest)
 
     def remove_faucet(self, faucet_or_name):
         if isinstance(faucet_or_name, str):

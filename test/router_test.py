@@ -106,7 +106,8 @@ class RouterTest(unittest.TestCase):
         self._router.add_rule(rule, faucet_name="test")
         for message in (message1, message2, message3, message4):
             self._faucet.create_message(message)
-            self._router.tick()
+
+        self._router.tick()
 
         self.assertEqual(self._sink.messages, [message1, message3])
         self.assertEqual(sink.messages, [message2, message4])
@@ -138,7 +139,8 @@ class RouterTest(unittest.TestCase):
 
         for message in (message1, message2, message3):
             self._faucet.create_message(message)
-            self._router.tick()
+
+        self._router.tick()
 
         self.assertEqual(sinks[0].messages, [message1])
         self.assertEqual(sinks[1].messages, [message2])
@@ -202,7 +204,8 @@ class RouterTest(unittest.TestCase):
 
         for message in (message1, message2, message3):
             self._faucet.create_message(message)
-            self._router.tick()
+
+        self._router.tick()
 
         self.assertEqual(sink1.messages, [message1])
         self.assertEqual(sink2.messages, [message2])
