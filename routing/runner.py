@@ -4,9 +4,12 @@ import shlex
 import socket
 import subprocess
 import time
+
 import yaml
 
 from . import PipeFaucet, PipeSink, SocketFaucet, SocketSink
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Proc:
@@ -52,6 +55,7 @@ class App:
             faucet = PipeFaucet(proc.stdout.fileno())
         elif self._type == 'socket':
             sock = socket.socket(socket.AF_UNIX)
+            _LOGGER.debug("Waiting for socket %s", sockname)
             while not os.path.exists(sockname):
                 time.sleep(0.1)
             sock.connect(sockname)
@@ -63,12 +67,11 @@ class App:
 class Runner:
 
     def __init__(self):
-        self._logger = logging.getLogger("runner")
         self._apps = {}
         self._procs = {}
 
     def load(self, config_file_name):
-        self._logger.info("Loading config %s", config_file_name)
+        _LOGGER.info("Loading config %s", config_file_name)
         with open(config_file_name) as config_file:
             config = yaml.safe_load(config_file)
         for app, app_config in config.items():
@@ -77,8 +80,9 @@ class Runner:
     def ensure_running(self, app_name, alias=None, with_args=None, **kwargs):
         if alias is None:
             alias = app_name
-        self._logger.info("Starting application %s as %s", app_name, alias)
+        _LOGGER.info("Starting application %s as %s", app_name, alias)
         self._procs[alias] = self._apps[app_name].start(with_args, **kwargs)
+        _LOGGER.debug("%s started", alias)
 
     def get_faucet(self, alias):
         return self._procs[alias].faucet
