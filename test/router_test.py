@@ -11,6 +11,9 @@ class TestSink(Sink):
     def write(self, message):
         self._messages.append(message)
 
+    def close(self):
+        pass
+
     @property
     def messages(self):
         return self._messages
@@ -29,6 +32,9 @@ class TestFaucet(Faucet):
             return self._messages.pop(0)
         except IndexError:
             return None
+
+    def close(self):
+        pass
 
 
 class TestChoiceRule(Rule):

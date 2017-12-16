@@ -23,7 +23,6 @@ class SocketFaucetTest(unittest.TestCase):
 
     def test_closed(self):
         server, client = socket.socketpair()
-
         self.addCleanup(server.close)
         self.addCleanup(client.close)
 
@@ -33,6 +32,19 @@ class SocketFaucetTest(unittest.TestCase):
 
         with self.assertRaises(EndpointClosedException):
             faucet.read()
+
+    def test_close(self):
+        server, client = socket.socketpair()
+        self.addCleanup(server.close)
+        self.addCleanup(client.close)
+
+        faucet = SocketFaucet(client)
+
+        faucet.close()
+
+        with self.assertRaises(OSError) as ose:
+            client.recv(1)
+            self.assertEqual(ose.exception.error_code, 9)  # EBADF
 
 
 class SocketSinkTest(unittest.TestCase):
@@ -63,3 +75,17 @@ class SocketSinkTest(unittest.TestCase):
 
         with self.assertRaises(EndpointClosedException):
             sink.write({"message": "test"})
+
+    def test_close(self):
+        server, client = socket.socketpair()
+
+        self.addCleanup(server.close)
+        self.addCleanup(client.close)
+
+        sink = SocketSink(client)
+
+        sink.close()
+
+        with self.assertRaises(OSError) as ose:
+            client.recv(1)
+            self.assertEqual(ose.exception.error_code, 9)  # EBADF

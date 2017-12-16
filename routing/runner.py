@@ -27,6 +27,12 @@ class Proc:
     def sink(self):
         return self._sink
 
+    def terminate(self):
+        self._faucet.close()
+        self._sink.close()
+        self._proc.terminate()
+        self._proc.wait()
+
 
 class App:
 
@@ -91,6 +97,5 @@ class Runner:
         return self._procs[alias].sink
 
     def terminate(self, alias):
-        proc = self._procs[alias]._proc
-        proc.stdin.close()
-        proc.stdout.close()
+        proc = self._procs[alias]
+        proc.terminate()

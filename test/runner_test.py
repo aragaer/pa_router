@@ -124,6 +124,29 @@ class RunnerTest(unittest.TestCase):
         with self.assertRaises(EndpointClosedException):
             self._runner.get_faucet('cat').read()
 
+        with self.assertRaises(EndpointClosedException):
+            self._runner.get_sink('cat').write("")
+
+    def test_terminate_socket(self):
+        dirname = mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(dirname))
+        sockname = os.path.join(dirname, "socket")
+
+        self._load_config("socat:\n"
+                          "  command: socat SYSTEM:cat UNIX-LISTEN:{socketname}\n"
+                          "  type: socket\n"
+                          "  socket: {socketname}\n".format(socketname=sockname))
+
+        self._runner.ensure_running('socat')
+
+        self._runner.terminate('socat')
+
+        with self.assertRaises(EndpointClosedException):
+            self._runner.get_faucet('socat').read()
+
+        with self.assertRaises(EndpointClosedException):
+            self._runner.get_sink('socat').write("")
+
     def test_socket_arg(self):
         dirname = mkdtemp()
         self.addCleanup(lambda: shutil.rmtree(dirname))

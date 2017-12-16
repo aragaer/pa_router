@@ -30,6 +30,16 @@ class PipeFaucetTest(unittest.TestCase):
         with self.assertRaises(EndpointClosedException):
             faucet.read()
 
+    def test_close(self):
+        faucet_fd, sink_fd = os.pipe()
+        faucet = PipeFaucet(faucet_fd)
+
+        faucet.close()
+
+        with self.assertRaises(OSError) as ose:
+            os.read(faucet_fd, 1)
+            self.assertEqual(ose.exception.error_code, 9)  # EBADF
+
 
 class PipeSinkTest(unittest.TestCase):
 
@@ -55,3 +65,13 @@ class PipeSinkTest(unittest.TestCase):
 
         with self.assertRaises(EndpointClosedException):
             sink.write({"message": "test"})
+
+    def test_close(self):
+        faucet_fd, sink_fd = os.pipe()
+        sink = PipeSink(sink_fd)
+
+        sink.close()
+
+        with self.assertRaises(OSError) as ose:
+            os.write(sink_fd, " ".encode())
+            self.assertEqual(ose.exception.error_code, 9)  # EBADF

@@ -16,6 +16,10 @@ class Faucet(metaclass=ABCMeta):
     def read(self): #pragma: no cover
         raise NotImplementedError
 
+    @abstractmethod
+    def close(self): #pragma: no cover
+        raise NotImplementedError
+
 
 class PipeFaucet(Faucet):
 
@@ -29,8 +33,13 @@ class PipeFaucet(Faucet):
             line = self._file.readline()
         except OSError as ex:
             raise EndpointClosedException(ex)
+        except ValueError:
+            raise EndpointClosedException()
         if line:
             return json.loads(line.decode())
+
+    def close(self):
+        self._file.close()
 
 
 class SocketFaucet(Faucet):
@@ -50,17 +59,26 @@ class SocketFaucet(Faucet):
                 self._buf += data
             except BlockingIOError:
                 pass
+            except OSError:
+                raise EndpointClosedException()
             pos = self._buf.find("\n")
         if pos == -1:
             return
         line, self._buf = self._buf[:pos], self._buf[pos+1:]
         return json.loads(line)
 
+    def close(self):
+        self._sock.close()
+
 
 class Sink(metaclass=ABCMeta):
 
     @abstractmethod
     def write(self, message): #pragma: no cover
+        raise NotImplementedError
+
+    @abstractmethod
+    def close(self): #pragma: no cover
         raise NotImplementedError
 
 
@@ -74,8 +92,11 @@ class PipeSink(Sink):
             self._file.write(json.dumps(message).encode())
             self._file.write(b'\n')
             self._file.flush()
-        except OSError:
+        except (OSError, ValueError):
             raise EndpointClosedException()
+
+    def close(self):
+        self._file.close()
 
 
 class SocketSink(Sink):
@@ -86,8 +107,11 @@ class SocketSink(Sink):
     def write(self, message):
         try:
             self._sock.send("{}\n".format(json.dumps(message)).encode())
-        except BrokenPipeError:
+        except (BrokenPipeError, OSError):
             raise EndpointClosedException()
+
+    def close(self):
+        self._sock.close()
 
 
 class Router(object):
