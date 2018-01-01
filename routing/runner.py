@@ -45,7 +45,7 @@ class App:
         if self._type == 'stdio':
             stdin = stdout = subprocess.PIPE
         elif self._type == 'socket':
-            sockname = self._kwargs.get('socket') or extra_kwargs['socket']
+            sockname = extra_kwargs.get('socket') or self._kwargs['socket']
             stdin = stdout = None
             if os.path.exists(sockname):
                 os.unlink(sockname)
