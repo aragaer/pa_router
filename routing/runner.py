@@ -78,11 +78,13 @@ class Runner:
 
     def load(self, config_file_name):
         _LOGGER.info("Loading config %s", config_file_name)
+        _LOGGER.warn("Loading config from file is now deprecated")
         with open(config_file_name) as config_file:
             self.update_config(yaml.safe_load(config_file))
 
     def update_config(self, config):
         for app, app_config in config.items():
+            _LOGGER.debug("Updating config for %s", app)
             self._apps[app] = App(**app_config)
 
     def ensure_running(self, app_name, alias=None, with_args=None, **kwargs):
