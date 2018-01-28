@@ -7,7 +7,8 @@ import time
 
 import yaml
 
-from . import PipeFaucet, PipeSink, SocketFaucet, SocketSink
+from . import PipeFaucet, PipeSink, ChannelFaucet, ChannelSink
+from .channel import PipeChannel, SocketChannel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,8 +66,9 @@ class App:
             while not os.path.exists(sockname):
                 time.sleep(0.1)
             sock.connect(sockname)
-            sink = SocketSink(sock)
-            faucet = SocketFaucet(sock)
+            channel = SocketChannel(sock)
+            sink = ChannelSink(channel)
+            faucet = ChannelFaucet(channel)
         return Proc(proc, faucet, sink)
 
 
