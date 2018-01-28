@@ -7,7 +7,6 @@ import time
 
 import yaml
 
-from . import PipeFaucet, PipeSink, ChannelFaucet, ChannelSink
 from .channel import PipeChannel, SocketChannel
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,22 +14,16 @@ _LOGGER = logging.getLogger(__name__)
 
 class Proc:
 
-    def __init__(self, proc, faucet, sink):
+    def __init__(self, proc, channel):
         self._proc = proc
-        self._faucet = faucet
-        self._sink = sink
+        self._channel = channel
 
     @property
-    def faucet(self):
-        return self._faucet
-
-    @property
-    def sink(self):
-        return self._sink
+    def channel(self):
+        return self._channel
 
     def terminate(self):
-        self._faucet.close()
-        self._sink.close()
+        self._channel.close()
         self._proc.terminate()
         self._proc.wait()
 
@@ -58,8 +51,8 @@ class App:
                                 stdout=stdout,
                                 cwd=self._kwargs.get('cwd'))
         if self._type == 'stdio':
-            sink = PipeSink(proc.stdin.fileno())
-            faucet = PipeFaucet(proc.stdout.fileno())
+            channel = PipeChannel(sink=proc.stdin.fileno(),
+                                  faucet=proc.stdout.fileno())
         elif self._type == 'socket':
             sock = socket.socket(socket.AF_UNIX)
             _LOGGER.debug("Waiting for socket %s", sockname)
@@ -67,9 +60,7 @@ class App:
                 time.sleep(0.1)
             sock.connect(sockname)
             channel = SocketChannel(sock)
-            sink = ChannelSink(channel)
-            faucet = ChannelFaucet(channel)
-        return Proc(proc, faucet, sink)
+        return Proc(proc, channel)
 
 
 class Runner:
@@ -96,11 +87,8 @@ class Runner:
         self._procs[alias] = self._apps[app_name].start(with_args, **kwargs)
         _LOGGER.debug("%s started", alias)
 
-    def get_faucet(self, alias):
-        return self._procs[alias].faucet
-
-    def get_sink(self, alias):
-        return self._procs[alias].sink
+    def get_channel(self, alias):
+        return self._procs[alias].channel
 
     def terminate(self, alias):
         proc = self._procs[alias]

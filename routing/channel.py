@@ -37,7 +37,7 @@ class PipeChannel(Channel):
     def read(self):
         try:
             return self._in.read() or b''
-        except OSError as ex:
+        except (ValueError, OSError) as ex:
             raise EndpointClosedException(ex)
 
     def write(self, *data):
@@ -45,7 +45,7 @@ class PipeChannel(Channel):
             for d in data:
                 self._out.write(d)
             self._out.flush()
-        except OSError as ex:
+        except (ValueError, OSError) as ex:
             raise EndpointClosedException(ex)
 
     def close(self):

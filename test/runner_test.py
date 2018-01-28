@@ -3,9 +3,10 @@ import shutil
 import time
 import unittest
 
-from tempfile import mkdtemp, mkstemp
+from tempfile import mkdtemp
 
-from routing import Faucet, Sink, EndpointClosedException
+from routing import EndpointClosedException
+from routing.channel import Channel
 from routing.runner import Runner
 
 
@@ -17,10 +18,10 @@ class RunnerTest(unittest.TestCase):
         self._runner = Runner()
 
     @staticmethod
-    def _readline(faucet):
+    def _readline(channel):
         for _ in range(10):
             time.sleep(0.001)
-            line = faucet.read()
+            line = channel.read()
             if line is not None:
                 return line
 
@@ -28,14 +29,12 @@ class RunnerTest(unittest.TestCase):
         self._runner.update_config({"cat": {"command": "cat", "type": "stdio"}})
         self._runner.ensure_running('cat')
 
-        sink = self._runner.get_sink('cat')
-        faucet = self._runner.get_faucet('cat')
+        channel = self._runner.get_channel('cat')
 
-        self.assertTrue(isinstance(sink, Sink))
-        sink.write({"message": "test"})
+        self.assertTrue(isinstance(channel, Channel))
+        channel.write(b'hello, world')
 
-        self.assertTrue(isinstance(faucet, Faucet))
-        self.assertEquals(self._readline(faucet), {"message": "test"})
+        self.assertEquals(self._readline(channel), b'hello, world')
 
     def test_cat_socat(self):
         dirname = mkdtemp()
@@ -49,9 +48,9 @@ class RunnerTest(unittest.TestCase):
 
         self._runner.ensure_running('socat')
 
-        self._runner.get_sink('socat').write({"message": "test"})
-        faucet = self._runner.get_faucet('socat')
-        self.assertEquals(self._readline(faucet), {"message": "test"})
+        channel = self._runner.get_channel('socat')
+        channel.write(b'hello, world')
+        self.assertEquals(self._readline(channel), b'hello, world')
 
     def test_cwd(self):
         dirname = mkdtemp()
@@ -66,19 +65,18 @@ class RunnerTest(unittest.TestCase):
 
         self._runner.ensure_running('cat')
 
-        faucet = self._runner.get_faucet('cat')
-        self.assertTrue(isinstance(faucet, Faucet))
-        self.assertEquals(self._readline(faucet), {"message": "test"})
+        channel = self._runner.get_channel('cat')
+        self.assertTrue(isinstance(channel, Channel))
+        self.assertEquals(self._readline(channel), b'{"message": "test"}\n')
 
     def test_alias(self):
         self._runner.update_config({"cat": {"command": "cat", "type": "stdio"}})
         self._runner.ensure_running('cat', alias='cat0')
 
-        sink = self._runner.get_sink('cat0')
-        faucet = self._runner.get_faucet('cat0')
+        channel = self._runner.get_channel('cat0')
 
-        sink.write({"message": "test"})
-        self.assertEquals(self._readline(faucet), {"message": "test"})
+        channel.write(b'hello, world')
+        self.assertEquals(self._readline(channel), b'hello, world')
 
     def test_extra_args(self):
         dirname = mkdtemp()
@@ -96,10 +94,10 @@ class RunnerTest(unittest.TestCase):
         self._runner.ensure_running('cat', alias="cat1", with_args=['file1'])
         self._runner.ensure_running('cat', alias="cat2", with_args=['file2'])
 
-        faucet1 = self._runner.get_faucet('cat1')
-        self.assertEquals(self._readline(faucet1), {"message": "test1"})
-        faucet2 = self._runner.get_faucet('cat2')
-        self.assertEquals(self._readline(faucet2), {"message": "test2"})
+        channel1 = self._runner.get_channel('cat1')
+        self.assertEquals(self._readline(channel1), b'{"message": "test1"}\n')
+        channel2 = self._runner.get_channel('cat2')
+        self.assertEquals(self._readline(channel2), b'{"message": "test2"}\n')
 
     def test_terminate(self):
         self._runner.update_config({"cat": {"command": "cat", "type": "stdio"}})
@@ -108,10 +106,10 @@ class RunnerTest(unittest.TestCase):
         self._runner.terminate('cat')
 
         with self.assertRaises(EndpointClosedException):
-            self._runner.get_faucet('cat').read()
+            self._runner.get_channel('cat').read()
 
         with self.assertRaises(EndpointClosedException):
-            self._runner.get_sink('cat').write("")
+            self._runner.get_channel('cat').write(b' ')
 
     def test_terminate_socket(self):
         dirname = mkdtemp()
@@ -128,10 +126,10 @@ class RunnerTest(unittest.TestCase):
         self._runner.terminate('socat')
 
         with self.assertRaises(EndpointClosedException):
-            self._runner.get_faucet('socat').read()
+            self._runner.get_channel('socat').read()
 
         with self.assertRaises(EndpointClosedException):
-            self._runner.get_sink('socat').write("")
+            self._runner.get_channel('socat').write(b' ')
 
     def test_socket_arg(self):
         dirname = mkdtemp()
@@ -147,27 +145,24 @@ class RunnerTest(unittest.TestCase):
 
         self._runner.ensure_running('socat', socket=sockname)
 
-        self._runner.get_sink('socat').write({"message": "test"})
-        faucet = self._runner.get_faucet('socat')
-        self.assertEquals(self._readline(faucet), {"message": "test"})
+        channel = self._runner.get_channel('socat')
+        channel.write(b'hello, world')
+        self.assertEquals(self._readline(channel), b'hello, world')
 
     def test_config_from_file(self):
-        config_fd, config_name = mkstemp()
-        config = os.fdopen(config_fd, "w")
-        config.write("cat:\n"
-                     "  command: cat\n"
-                     "  type: stdio\n")
-        config.close()
-        self._runner.load(config_name)
-        os.unlink(config_name)
+        dirname = mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(dirname))
+        config_file = os.path.join(dirname, "config")
+        with open(config_file, "w") as config:
+            config.write("cat:\n"
+                        "  command: cat\n"
+                        "  type: stdio\n")
+        self._runner.load(config_file)
 
         self._runner.ensure_running('cat')
 
-        sink = self._runner.get_sink('cat')
-        faucet = self._runner.get_faucet('cat')
+        channel = self._runner.get_channel('cat')
 
-        self.assertTrue(isinstance(sink, Sink))
-        sink.write({"message": "test"})
-
-        self.assertTrue(isinstance(faucet, Faucet))
-        self.assertEquals(self._readline(faucet), {"message": "test"})
+        self.assertTrue(isinstance(channel, Channel))
+        channel.write(b'hello, world')
+        self.assertEquals(self._readline(channel), b'hello, world')
