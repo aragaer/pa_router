@@ -55,3 +55,26 @@ class PipeChannel(Channel):
             self._out.close()
 
 
+class SocketChannel(Channel):
+
+    def __init__(self, sock):
+        self._sock = sock
+        self._sock.setblocking(False)
+
+    def read(self):
+        try:
+            return self._sock.recv(4096)
+        except BlockingIOError:
+            return b''
+        except OSError as ex:
+            raise EndpointClosedException(ex)
+
+    def write(self, *data):
+        try:
+            for d in data:
+                self._sock.send(d)
+        except OSError as ex:
+            raise EndpointClosedException(ex)
+
+    def close(self):
+        self._sock.close()
