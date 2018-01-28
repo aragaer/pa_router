@@ -1,81 +1,9 @@
 import fcntl
-import json
 import os
 import unittest
 
-from routing import EndpointClosedException, PipeFaucet, PipeSink
+from routing import EndpointClosedException, ChannelFaucet, ChannelSink
 from routing.channel import PipeChannel
-
-
-class PipeFaucetTest(unittest.TestCase):
-
-    def test_read(self):
-        faucet_fd, sink_fd = os.pipe()
-
-        faucet = PipeFaucet(faucet_fd)
-
-        sink_file = os.fdopen(sink_fd, mode='wb')
-        sink_file.write(b'{"message":"test"}\n{"message":"second"}\n')
-        sink_file.flush()
-
-        self.assertEqual(faucet.read(), {"message": "test"})
-        self.assertEqual(faucet.read(), {"message": "second"})
-        self.assertEqual(faucet.read(), None)
-
-    def test_closed(self):
-        faucet_fd, sink_fd = os.pipe()
-        faucet = PipeFaucet(faucet_fd)
-
-        os.close(faucet_fd)
-
-        with self.assertRaises(EndpointClosedException):
-            faucet.read()
-
-    def test_close(self):
-        faucet_fd, sink_fd = os.pipe()
-        faucet = PipeFaucet(faucet_fd)
-
-        faucet.close()
-
-        with self.assertRaises(OSError) as ose:
-            os.read(faucet_fd, 1)
-            self.assertEqual(ose.exception.error_code, 9)  # EBADF
-
-
-class PipeSinkTest(unittest.TestCase):
-
-    def test_create(self):
-        faucet_fd, sink_fd = os.pipe()
-
-        sink = PipeSink(sink_fd)
-
-        sink.write({"message": "test"})
-
-        faucet_file = os.fdopen(faucet_fd, mode='rb')
-        fl = fcntl.fcntl(faucet_fd, fcntl.F_GETFL)
-        fcntl.fcntl(faucet_fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-        line = faucet_file.readline()
-
-        self.assertEqual(line, "{}\n".format(json.dumps({"message": "test"})).encode())
-
-    def test_closed(self):
-        faucet_fd, sink_fd = os.pipe()
-        sink = PipeSink(sink_fd)
-
-        os.close(sink_fd)
-
-        with self.assertRaises(EndpointClosedException):
-            sink.write({"message": "test"})
-
-    def test_close(self):
-        faucet_fd, sink_fd = os.pipe()
-        sink = PipeSink(sink_fd)
-
-        sink.close()
-
-        with self.assertRaises(OSError) as ose:
-            os.write(sink_fd, b' ')
-            self.assertEqual(ose.exception.error_code, 9)  # EBADF
 
 
 class PipeChannelTest(unittest.TestCase):
@@ -123,6 +51,20 @@ class PipeChannelTest(unittest.TestCase):
         self.assertEqual(channel.read(), b'hello, world')
         self.assertEqual(channel.read(), b'')
         self.assertEqual(channel.read(), b'')
+        self.assertEqual(faucet_file.readline(), b'hello, world\n')
+        self.assertEqual(faucet_file.readline(), b'')
+        self.assertEqual(faucet_file.readline(), b'')
+
+    def test_write_list(self):
+        this_faucet_fd, that_sink_fd = os.pipe()
+        channel = PipeChannel(sink=that_sink_fd)
+
+        channel.write(b'hello, ', b'world\n')
+
+        faucet_file = os.fdopen(this_faucet_fd, mode='rb')
+        fl = fcntl.fcntl(this_faucet_fd, fcntl.F_GETFL)
+        fcntl.fcntl(this_faucet_fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+
         self.assertEqual(faucet_file.readline(), b'hello, world\n')
         self.assertEqual(faucet_file.readline(), b'')
         self.assertEqual(faucet_file.readline(), b'')

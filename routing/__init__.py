@@ -111,7 +111,7 @@ class ChannelSink(Sink):
         self._channel = channel
 
     def write(self, message):
-        self._channel.write(json.dumps(message).encode())
+        self._channel.write(json.dumps(message).encode(), b'\n')
 
     def close(self):
         self._channel.close()

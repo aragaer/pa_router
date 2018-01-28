@@ -18,8 +18,8 @@ class TestChannel(Channel):
         else:
             return b''
 
-    def write(self, data):
-        self.outs.append(data)
+    def write(self, *data):
+        self.outs.append(''.join([d.decode() for d in data]))
 
     def close(self):
         self.closed = True
@@ -54,7 +54,7 @@ class SinkTest(unittest.TestCase):
 
         sink.write(msg)
 
-        self.assertEqual(channel.outs, [json.dumps(msg).encode()])
+        self.assertEqual(channel.outs, [json.dumps(msg)+'\n'])
 
     def test_close(self):
         channel = TestChannel()

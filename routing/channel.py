@@ -13,7 +13,7 @@ class Channel(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def write(self): #pragma: no cover
+    def write(self, *data): #pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
@@ -40,9 +40,10 @@ class PipeChannel(Channel):
         except OSError as ex:
             raise EndpointClosedException(ex)
 
-    def write(self, data):
+    def write(self, *data):
         try:
-            self._out.write(data)
+            for d in data:
+                self._out.write(d)
             self._out.flush()
         except OSError as ex:
             raise EndpointClosedException(ex)
