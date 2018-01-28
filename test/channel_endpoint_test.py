@@ -2,7 +2,7 @@ import json
 import unittest
 
 from routing import Faucet, Sink
-from routing.channel import EndpointClosedException, Channel
+from runner.channel import EndpointClosedException, Channel
 
 
 class TestChannel(Channel):

@@ -1,1 +1,1 @@
-PyYAML
+https://github.com/aragaer/runner/archive/v0.1.1.tar.gz
