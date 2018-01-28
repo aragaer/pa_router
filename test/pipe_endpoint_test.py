@@ -2,8 +2,7 @@ import fcntl
 import os
 import unittest
 
-from routing import EndpointClosedException, ChannelFaucet, ChannelSink
-from routing.channel import PipeChannel
+from routing.channel import EndpointClosedException, PipeChannel
 
 
 class PipeChannelTest(unittest.TestCase):

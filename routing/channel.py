@@ -3,7 +3,9 @@ import os
 
 from abc import ABCMeta, abstractmethod
 
-from . import EndpointClosedException
+
+class EndpointClosedException(Exception):
+    pass
 
 
 class Channel(metaclass=ABCMeta):

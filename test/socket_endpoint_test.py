@@ -1,8 +1,7 @@
 import socket
 import unittest
 
-from routing import EndpointClosedException, ChannelSink, ChannelFaucet
-from routing.channel import SocketChannel
+from routing.channel import EndpointClosedException, SocketChannel
 
 
 class SocketChannelTest(unittest.TestCase):

@@ -1,8 +1,8 @@
 import json
 import unittest
 
-from routing import EndpointClosedException, ChannelFaucet, ChannelSink
-from routing.channel import Channel
+from routing import Faucet, Sink
+from routing.channel import EndpointClosedException, Channel
 
 
 class TestChannel(Channel):
@@ -29,7 +29,7 @@ class FaucetTest(unittest.TestCase):
 
     def test_read(self):
         channel = TestChannel()
-        faucet = ChannelFaucet(channel)
+        faucet = Faucet(channel)
 
         channel.ins.append(b'{"message":"test"}\n{"message":"second"}\n"')
         self.assertEqual(faucet.read(), {"message": "test"})
@@ -38,7 +38,7 @@ class FaucetTest(unittest.TestCase):
 
     def test_close(self):
         channel = TestChannel()
-        faucet = ChannelFaucet(channel)
+        faucet = Faucet(channel)
 
         faucet.close()
 
@@ -49,7 +49,7 @@ class SinkTest(unittest.TestCase):
 
     def test_write(self):
         channel = TestChannel()
-        sink = ChannelSink(channel)
+        sink = Sink(channel)
         msg = {"message": "test"}
 
         sink.write(msg)
@@ -58,7 +58,7 @@ class SinkTest(unittest.TestCase):
 
     def test_close(self):
         channel = TestChannel()
-        sink = ChannelSink(channel)
+        sink = Sink(channel)
 
         sink.close()
 

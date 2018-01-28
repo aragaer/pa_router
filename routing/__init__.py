@@ -1,16 +1,10 @@
-import fcntl
 import logging
 import json
-import os
 
 from abc import ABCMeta, abstractmethod
 
 
-class EndpointClosedException(Exception):
-    pass
-
-
-class Faucet(metaclass=ABCMeta):
+class AbstractFaucet(metaclass=ABCMeta):
 
     @abstractmethod
     def read(self): #pragma: no cover
@@ -21,7 +15,7 @@ class Faucet(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class ChannelFaucet(Faucet):
+class Faucet(AbstractFaucet):
 
     def __init__(self, channel):
         self._channel = channel
@@ -44,57 +38,7 @@ class ChannelFaucet(Faucet):
         self._channel.close()
 
 
-class PipeFaucet(Faucet):
-
-    def __init__(self, pipe_fd):
-        fl = fcntl.fcntl(pipe_fd, fcntl.F_GETFL)
-        fcntl.fcntl(pipe_fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-        self._file = os.fdopen(pipe_fd, mode='rb')
-
-    def read(self):
-        try:
-            line = self._file.readline()
-        except OSError as ex:
-            raise EndpointClosedException(ex)
-        except ValueError:
-            raise EndpointClosedException()
-        if line:
-            return json.loads(line.decode())
-
-    def close(self):
-        self._file.close()
-
-
-class SocketFaucet(Faucet):
-
-    def __init__(self, sock):
-        self._sock = sock
-        self._sock.setblocking(False)
-        self._buf = ""
-
-    def read(self):
-        pos = self._buf.find("\n")
-        if pos == -1:
-            try:
-                data = self._sock.recv(4096).decode()
-                if not data:
-                    raise EndpointClosedException()
-                self._buf += data
-            except BlockingIOError:
-                pass
-            except OSError:
-                raise EndpointClosedException()
-            pos = self._buf.find("\n")
-        if pos == -1:
-            return
-        line, self._buf = self._buf[:pos], self._buf[pos+1:]
-        return json.loads(line)
-
-    def close(self):
-        self._sock.close()
-
-
-class Sink(metaclass=ABCMeta):
+class AbstractSink(metaclass=ABCMeta):
 
     @abstractmethod
     def write(self, message): #pragma: no cover
@@ -105,7 +49,7 @@ class Sink(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class ChannelSink(Sink):
+class Sink(AbstractSink):
 
     def __init__(self, channel):
         self._channel = channel
@@ -115,38 +59,6 @@ class ChannelSink(Sink):
 
     def close(self):
         self._channel.close()
-
-
-class PipeSink(Sink):
-
-    def __init__(self, pipe_fd):
-        self._file = os.fdopen(pipe_fd, mode='wb')
-
-    def write(self, message):
-        try:
-            self._file.write(json.dumps(message).encode())
-            self._file.write(b'\n')
-            self._file.flush()
-        except (OSError, ValueError):
-            raise EndpointClosedException()
-
-    def close(self):
-        self._file.close()
-
-
-class SocketSink(Sink):
-
-    def __init__(self, sock):
-        self._sock = sock
-
-    def write(self, message):
-        try:
-            self._sock.send("{}\n".format(json.dumps(message)).encode())
-        except (BrokenPipeError, OSError):
-            raise EndpointClosedException()
-
-    def close(self):
-        self._sock.close()
 
 
 class Router(object):

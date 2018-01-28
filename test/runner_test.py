@@ -5,8 +5,7 @@ import unittest
 
 from tempfile import mkdtemp
 
-from routing import EndpointClosedException
-from routing.channel import Channel
+from routing.channel import EndpointClosedException, Channel
 from routing.runner import Runner
 
 
