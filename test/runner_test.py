@@ -164,3 +164,16 @@ class RunnerTest(unittest.TestCase):
         self._runner.get_sink('socat').write({"message": "test"})
         faucet = self._runner.get_faucet('socat')
         self.assertEquals(self._readline(faucet), {"message": "test"})
+
+    def test_config(self):
+        self._runner.update_config({"cat": {"command": "cat", "type": "stdio"}})
+        self._runner.ensure_running('cat')
+
+        sink = self._runner.get_sink('cat')
+        faucet = self._runner.get_faucet('cat')
+
+        self.assertTrue(isinstance(sink, Sink))
+        sink.write({"message": "test"})
+
+        self.assertTrue(isinstance(faucet, Faucet))
+        self.assertEquals(self._readline(faucet), {"message": "test"})

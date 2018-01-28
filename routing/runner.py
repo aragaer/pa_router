@@ -79,7 +79,9 @@ class Runner:
     def load(self, config_file_name):
         _LOGGER.info("Loading config %s", config_file_name)
         with open(config_file_name) as config_file:
-            config = yaml.safe_load(config_file)
+            self.update_config(yaml.safe_load(config_file))
+
+    def update_config(self, config):
         for app, app_config in config.items():
             self._apps[app] = App(**app_config)
 
