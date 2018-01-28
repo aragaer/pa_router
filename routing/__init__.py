@@ -21,6 +21,29 @@ class Faucet(metaclass=ABCMeta):
         raise NotImplementedError
 
 
+class ChannelFaucet(Faucet):
+
+    def __init__(self, channel):
+        self._channel = channel
+        self._buf = ""
+
+    def read(self):
+        pos = self._buf.find("\n")
+        if pos == -1:
+            data = self._channel.read()
+            if not data:
+                return
+            self._buf += data.decode()
+            pos = self._buf.find("\n")
+        if pos == -1:
+            return
+        line, self._buf = self._buf[:pos], self._buf[pos+1:]
+        return json.loads(line)
+
+    def close(self):
+        self._channel.close()
+
+
 class PipeFaucet(Faucet):
 
     def __init__(self, pipe_fd):
@@ -80,6 +103,18 @@ class Sink(metaclass=ABCMeta):
     @abstractmethod
     def close(self): #pragma: no cover
         raise NotImplementedError
+
+
+class ChannelSink(Sink):
+
+    def __init__(self, channel):
+        self._channel = channel
+
+    def write(self, message):
+        self._channel.write(json.dumps(message).encode())
+
+    def close(self):
+        self._channel.close()
 
 
 class PipeSink(Sink):
